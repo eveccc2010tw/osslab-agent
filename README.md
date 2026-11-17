@@ -1,14 +1,43 @@
-# OSSLab-agent
+# OSSLab-agent：多人 AI Agent 與 SSO 協同架構
 
 > **狀態：OSSLab 正在測試上線中。** 現階段先公開架構與可公開的 Chrome 容器；後續預定釋出可重放的 patch file 與安裝／部署 plan，讓人或 AI agent 都能依步驟完成安裝，而不必從零猜測環境差異。
 
-**Lark Suite 是給企業團隊使用的 IM 與協作平台**：不論 app 或 web，除了群組、私訊，也整合文件、試算表、信箱、表單、資料流程與審核，讓團隊在一個 workspace 裡溝通和做事。即使採免費方案，企業 IM、可自動化的 Base、文書協作、Mail／通知都能先集中；再搭配 Authentik，這個 workspace 便成為 SSO 的身分基礎與 AI agent 的協作 channel。
+OSSLab-agent 是一套自架的協同架構。我們將 **Lark Suite** 作為唯一的企業 IM 與工作入口，讓 AI agent 像虛擬同事一樣進入團隊原本的對話、資料、文件與審核脈絡。
 
-OSSLab-agent 是一套自架的**多人 AI agent 與 SSO 協同架構**。同事只使用 Lark Suite：在群組、私訊、Mail、Base 與表單裡交辦工作、讀信、看進度與確認草稿；AI agent 則像虛擬同事一樣，在同一個工作流程接任務、執行、回報並等待確認。`cc-connect`、[lark-cli](https://github.com/larksuite/cli)、訂閱制 code agent、資料工具與隔離 Chrome 容器都在後端運作。Magpie 負責接入它的模型流量去敏與替補；Multica 則承接行銷案與內部系統開發的專案脈絡、派工及驗收，進度通知回到 Lark。
+## 關鍵技術組件
 
-綜合 IM、Mail、文件、Base／Forms、審核、Open Platform 與企業身分這些辦公團隊真正需要的功能，**OSSLab 的結論是：Lark Suite 是最適合做 AI bot channel 的工作入口**。bot 不必另開一個聊天網站，而是能直接進入團隊原本的對話、資料、文件與審核脈絡，成為可被管理的虛擬同事。
+- **Lark Suite (工作入口)**：整合 IM、Mail、Base、Forms、審核與文件。bot 直接在團隊的協作脈絡下接任務、執行、回報，無需另開聊天網站。
+- **Magpie (安全性與模型管理)**：在 Agent 與上游模型之間管理流量。
+    - **去敏保護**：自動過濾請求中的 PII、帳號、密碼、API key 與 token。
+    - **模型路由與替補**：當主模型（如 GPT-6 系列）異常或額度不足時，自動切換至其他具成本效益的 LLM，保證業務穩定性。
+- **Multica (專案生命週期管理)**：將專案轉化為 issue/PR 協作流。
+    - **主動式管理**：AI 主動協助追蹤任務細節、進度，並將變更或待確認事項主動推播回 Lark。
+    - **完整紀錄**：保留需求、施工、審查、驗收與部署決策的歷史，確保專案能跨 agent、跨天持續推進。
+- **Agent Runtime (執行環境)**：以 `cc-connect` 串接訂閱制 agent runtime (如 GPT-6, Claude 等)，搭配隔離的 Chrome 容器，安全地執行實際辦公業務。
 
-它不是再做一個 AI 聊天網站。Lark 是唯一的人員工作入口，也是企業身分的起點：同一個帳號經 Authentik／OIDC 延伸到 Cloudflare Access、NetBird、RustDesk、Termix 與其他核准服務。登入順暢，權限仍按服務與角色分開管理。
+## 實際應用情境
+
+### 1. 行銷案專案管理 (Multica 驅動)
+從活動策劃開始，Multica 記錄行銷目標、內容缺口分析、廣告成效整理、文案/落地頁製作及追蹤轉換數據。Agent 透過 issue 派工，並將階段成果、審核需求透過 Lark 自動通知負責人，確保行銷活動從企劃到追蹤的節奏不中斷。
+
+### 2. 內部系統開發 (Multica + Magpie 驅動)
+在需求與驗收條件確立後，Agent 實作功能 (如新增 Odoo 表單欄位、自訂內部工具)、提交 PR，經獨立審查流程後等待驗收。在涉及錯誤紀錄分析或測試開發時，Magpie 自動過濾錯誤日誌中的機敏憑證，在安全的前提下讓 AI 模型準確診斷系統問題。
+
+## 工作流概覽
+
+```text
+Lark IM / Mail / Base (協作入口)
+          ↓
+  cc-connect + Agent Server (核心調度)
+          ↓
+  Magpie (安全過濾 + 模型替補)
+          ↓
+  LLM 模型 (GPT-6 / Claude 等)
+          ↓
+  Multica (專案紀錄 + 審核 + 派工)
+          ↓
+  實作層 (隔離 Chrome / Odoo / 內網服務)
+```
 
 ## 核心原則
 
@@ -20,42 +49,6 @@ OSSLab-agent 是一套自架的**多人 AI agent 與 SSO 協同架構**。同事
 - **訂閱制 agent runtime**：AI Agent Server 以 cc-connect 串接 Codex（GPT-6 系列）、Claude Code 等訂閱制 runtime。Magpie 另在模型連線層管理去敏與替補，可按用途配置訂閱、API 或本地模型；費用與可用額度依各來源分開管理。
 - **人先解鎖，agent 才接手**：專屬 agent 的 Chrome 使用對應同事的 Web 身分；本人先在 [OSSLab-agent 修改版 KasmVNC Chrome](docker/chrome/README.md) 解鎖 Vaultwarden，agent 才能在已解鎖的工作階段內協助操作，且永遠不取得主密碼。
 - **AI 是可控的虛擬助理**：依授權，agent 可直接操作 ERP、讀取與回覆 email、上架、查訪價格，或執行其他辦公室工作流；權限也能細緻限制為查詢、整理或草稿。寄信、付款、刪除、改權限與例外情況仍可要求人工確認或由真人接手。
-
-## 工作流
-
-```text
-Lark 群組／私訊／Mail／Base／Forms
-                  ↓
-  cc-connect + lark-cli + AI Agent Server
-                  ↓
- Codex（GPT-6 系列）等訂閱制 runtime + 受限工具／資料
-                  ↓
-     隔離 Chrome、內網服務或可選 Odoo
-                  ↓
-       結果、草稿、審核全部回到 Lark
-```
-
-實際上，agent 可整理客服信箱詢價、依 Base 表單分派需求、比較報價、查詢 Base／Odoo 的庫存與客戶狀態，或在網站操作到需要人判斷的步驟再通知接手。完整情境見[〈多人 AI agent 應用〉的工作如何落地](docs/field-notes/01-ai-agent-applications.md#工作如何落地)。
-
-需要持續追蹤的行銷案與內部系統開發，則由 Multica 保存需求、討論、負責 agent 與交付結果。agent 依 issue 接續工作，程式變更送 PR 審查；Lark 接收進度與待確認事項，讓日常對話和專案紀錄接在一起。
-
-## 模型去敏、替補與專案協作
-
-### Magpie：過濾個資與憑證，管理模型替補
-
-辦公工作常要讀客戶信件、詢價附件或系統錯誤紀錄，內容可能夾帶姓名、電話、email、登入帳號、密碼、API key 與 token。Magpie 放在接入它的 agent 與模型之間，在請求送往上游前，依內建去敏與自訂規則辨識、遮罩這些資料。需要回填的業務欄位可用 placeholder 代替，並在回覆回到本地時還原對應內容；過濾範圍取決於啟用的規則與詞表。
-
-例如，agent 要根據客戶來信草擬回覆時，可以先遮罩客戶姓名與聯絡方式，保留產品、數量和問題供模型判斷，再於本地回填回覆需要的稱呼。分析內部系統的錯誤紀錄時，也可先過濾紀錄裡的帳密、API key 與 token，讓模型讀取錯誤上下文。這層處理作用於經 Magpie 且已啟用去敏的請求。
-
-Magpie 同時管理可用的模型來源，例如 GPT-6 系列、Claude、DeepSeek，以及各自的訂閱或 API 連線。對允許替補的辦公任務，可依已設定的路由與可用額度安排備援，減少每次服務異常都要人工改設定的工作。開發與獨立審查需要固定模型身分時，則指定具名模型，保留施工與審查的分工。
-
-### Multica：持續推進行銷案與內部系統開發
-
-行銷案與內部系統開發會跨越多次對話、不同 agent 與多輪驗收。Multica 把目標、需求、討論、任務狀態和交付證據留在 project 與 issue 裡，讓 agent 接續前一輪工作，也讓負責人看得見目前進度、阻塞和待決定事項。階段成果與需要人回覆的事項透過 Lark 通知，完整內容仍可回到原工單查閱。
-
-以行銷案為例，一次活動可能需要整理廣告與網站成效資料、找出內容缺口、準備文案和落地頁，再追蹤上線後的詢問與轉換。這些工作可在同一個專案下分派給 agent；每項任務保留資料來源、草稿、審查意見與下一步，負責人在 Lark 收到待確認通知後決定是否採用。後續調整能接著同一份紀錄做，避免每次都重新交代活動目標與前次結論。
-
-內部系統開發則從需求與驗收條件開始：例如調整 Odoo 表單或新增內部查詢工具，先在 issue 說清楚使用情境，再由 agent 實作、提交 PR，交給另一位 reviewer 核對需求與變更，附上驗證結果後等待人驗收。需求變更、未解問題與部署決定都留在工單，Lark 用來通知進度與需要人接手的節點，讓開發能跨日、跨 agent 持續推進。
 
 ## 文件
 
