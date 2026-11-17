@@ -28,13 +28,15 @@ Authentik：統一身分驗證與 SSO 中心
 | **AI Agent Server** | 一台專用 server 承載每位同事的專屬 agent。每個 agent 的 session、browser profile、bot identity、project context 與能力設定都可不同，避免資料和登入狀態串在一起。 |
 | **[cc-connect](https://github.com/chenhg5/cc-connect)** | AI agent 的跨訊息通道：把 Lark 事件路由到對應同事的專屬 agent，再回傳進度與人工介入請求；對同事不會另外露出第二個聊天 UI。 |
 | **[lark-cli](https://github.com/larksuite/cli)** | Lark 官方維護、為人員與 AI agent 設計的 CLI。agent 透過它以受控權限操作 Messenger、Docs、Base、Sheets、Mail、Tasks 等 Lark 工作面，再由 cc-connect 把任務與結果接回對的對話脈絡。 |
+| **Magpie** | 模型閘道，對接入且已啟用去敏的請求，依規則過濾個資、帳密、API key 與 token；管理訂閱、API 或本地模型來源及允許的替補路由。需要固定身分的開發／審查工作指定具名模型。 |
+| **Multica** | 行銷案與內部系統開發的專案協作平台，以 project／issue 保存需求、派工、討論與交付證據，串接 PR、獨立審查和驗收，並透過 Lark 通知進度與待確認事項。 |
 | **[Odoo 18 Community Edition](https://github.com/odoo/odoo)** | **選配 ERP connector**。日常表單與流程可先由 Lark Base／Forms 承接；只有需要完整 ERP 控管時才接入 Odoo CE。現有客製以社群版加自有 addons 持續調整，AI 可協助高頻率改碼、測試與驗證，因此不把企業版授權當成改流程的必要前提。 |
 
 ## 密碼與遠端維護
 
 | 範圍 | 元件 | 在整體中的位置 |
 | --- | --- | --- |
-| agent runtime | Codex、Grok 等訂閱制 code agent build | 只採訂閱制，避免純 API 用量成本；不採 OpenClaw 或 Hermes 架構。 |
+| agent runtime | Codex（GPT-6 系列）、Claude Code 等訂閱制 runtime | 執行 agent 任務；Magpie 在模型連線層另管理去敏與替補，各來源的費用與可用額度分開管理。 |
 | 真實網站操作 | [OSSLab-agent 修改版 KasmVNC Chrome](../../docker/chrome/README.md)、CDP、Playwright | 以 Kasm Chrome 為 base 的修改版，含繁中輸入、CDP relay 與 Bitwarden policy。每位同事／agent 有自己的 profile，真人可接手同一個瀏覽器工作階段。 |
 | 密碼管理 | [Vaultwarden](https://github.com/dani-garcia/vaultwarden) | 同事先在自己的 KasmVNC Chrome 解鎖 Vaultwarden，專屬 agent 才能在該 session 使用登入資料，永遠不取得主密碼；服務秘密另以受限 API／CLI helper 讀取。 |
 | 遠端維護 | [lejianwen/rustdesk-server](https://github.com/lejianwen/rustdesk-server) | 自架 RustDesk server／API，處理 IT 遠端維護與短期分享需求。 |
